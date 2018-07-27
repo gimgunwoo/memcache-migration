@@ -7,4 +7,4 @@ This script will let you dump key value pairs from one memcache server, add them
 * This script must run in the new server
 
 ## Example
-`sudo ./memcache_import.sh <old server ip address>
+`sudo ./memcache_import.sh <old server ip address>`
