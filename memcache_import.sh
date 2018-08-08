@@ -2,13 +2,18 @@
 
 KEYDUMP="/root/KEY"
 VALUE="/root/VALUE"
+LOG="/var/log/memcache-mover"
+OLDHOSTIP=$1
+
+#cleanup log file
+echo "" > $LOG
 
 #dump data from an old memcache server
 #libmemcached-tools is required
-memcdump --servers="$1" > $KEYDUMP
+memcdump --servers="$OLDHOSTIP" > $KEYDUMP
 
 while read -r line; do
-    echo "get $line" | nc $1 11211 >> $VALUE
+    echo "get $line" | nc $OLDHOSTIP 11211 >> $VALUE
 done <"$KEYDUMP"
 
 #remove return carriage in value file
@@ -19,7 +24,7 @@ declare -a PAIR
 
 while read -r line
 do
-	#read value file, add elements in the array
+    #read value file, add elements in the array
         if [ "$line" != "END" ]
         then
                 if [[ $line = "VALUE"* ]]
@@ -38,7 +43,7 @@ do
                         PAIR[$LENGTH]=$(echo -n "$line\r")
                 fi
         else
-		#create a memcached set command string
+        #create a memcached set command string
                 SET="set "
                 for ((i=0; i<${#PAIR[@]}; i++))
                 do
@@ -46,14 +51,16 @@ do
                         then
                                 SET="$SET${PAIR[$i]} "
                         else
-			#values shouldn't have a whitespace at the end
+            #values shouldn't have a whitespace at the end
                                 SET="$SET${PAIR[$i]}"
                         fi
                 done
 
                 #run a memcached set command to add pairs
-		echo "Adding values for ${PAIR[0]}"
                 echo -e "$SET" | nc localhost 11211
+
+        #compare values in both servers
+        echo ${PAIR[0]} $(diff <(echo "get ${PAIR[0]}" | nc localhost 11211) <(echo "get ${PAIR[0]}" | nc $OLDHOSTIP 11211)) >> $LOG
 
                 #reset the command and the array
                 SET=""
